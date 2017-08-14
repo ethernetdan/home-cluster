@@ -1,2 +1,10 @@
 # Installation dependencies
 deps
+
+# Certficates and keys
+*.crt
+*.key
+
+# Don't vendor tectonic-installer except configuration
+tectonic
+!tectonic/metal.tfvars
