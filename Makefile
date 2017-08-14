@@ -1,3 +1,5 @@
+TERRAFORM_CONFIG ?= config.tfvars
+
 TERRAFORM_VERSION ?= 0.9.6
 MATCHBOX_VERSION ?= v0.6.1
 TECTONIC_VERSION ?= 1.7.1
@@ -5,13 +7,18 @@ TECTONIC_VERSION ?= 1.7.1
 RKT_DEB ?= rkt_$(RKT_VERSION)-1_amd64.deb
 TECTONIC_TAR ?= tectonic-$(TECTONIC_VERSION)-tectonic.1.tar.gz
 
+COREOS_CHANNEL ?= $(shell awk -F "=" '/^tectonic_cl_channel/ {gsub(/[ \t"]/, "", $$2); print $$2}' $(TERRAFORM_CONFIG))
+COREOS_VERSION ?= $(shell awk -F "=" '/^tectonic_metal_cl_version/ {gsub(/[ \t"]/, "", $$2); print $$2}' $(TERRAFORM_CONFIG))
+
 DOMAIN ?= dg.gg
 
-tectonic/.terraformrc: tectonic
-	sed "s|<PATH_TO_INSTALLER>|$(realpath $(dir $@)/tectonic-installer/linux/installer)|g" $</terraformrc.example > $@
+tectonic/terraformrc.example: tectonic
+tectonic/.terraformrc: tectonic/terraformrc.example
+	sed "s|<PATH_TO_INSTALLER>|$(realpath $(dir $@)/tectonic-installer/linux/installer)|g" $< > $@
 
 tectonic: deps/$(TECTONIC_TAR)
-	mkdir $@
+	mkdir -p $@
+	ln -fs $(notdir $(TERRAFORM_CONFIG)) $@
 	tar -xzvf $<
 
 matchbox/server.key: deps/matchbox
@@ -20,12 +27,16 @@ matchbox/server.key: deps/matchbox
 		SAN=DNS.1:matchbox.${DOMAIN} exec ./cert-gen
 	mv $</scripts/tls/*.key $</scripts/tls/*.crt $(dir $@)
 
+matchbox/coreos: matchbox/coreos/$(COREOS_VERSION)
+matchbox/coreos/$(COREOS_VERSION): deps/matchbox
+	$</scripts/get-coreos $(COREOS_CHANNEL) $(COREOS_VERSION) $$(dirname $(dir $@))
+
 install: install-rkt
 	apt-get update -y
 	apt-get install --no-install-recommends -y git unzip qemu-kvm qemu-utils libvirt-daemon-system libvirt-clients virtinst
 
 clean:
-	rm -rf deps matchbox/*.crt matchbox/*.key tectonic
+	rm -rf deps matchbox tectonic
 	
 install-rkt: deps/$(RKT_DEB)
 	dpkg -i $<

@@ -5,6 +5,8 @@ deps
 *.crt
 *.key
 
+# VM images
+matchbox/coreos
+
 # Don't vendor tectonic-installer except configuration
 tectonic
-!tectonic/metal.tfvars
